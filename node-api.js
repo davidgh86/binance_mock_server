@@ -189,6 +189,12 @@ app.get('/api/v3/allOrderList', function(req, res) {
   }
   if (params.limit){
     limit = parseInt(params.limit)
+    if (limit > 1000){
+      limit = 1000
+    }
+    if (limit < 0) {
+      limit = 0
+    }
   }
   result = orderListOCO.filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime))
   if (result.length > limit){
