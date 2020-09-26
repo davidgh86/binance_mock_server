@@ -7,18 +7,18 @@ const { v4: uuidv4 } = require('uuid');
 
 const filled_probabilty = 0.90
 
-let current_date;
-let current_open;
-let current_close;
-let current_low;
-let current_high;
-let current_price;
+let current_date = null;
+let current_open = null;
+let current_close = null;
+let current_low = null;
+let current_high = null;
+let current_price = null;
 
-let previous_date;
-let previous_open;
-let previous_close;
-let previous_low;
-let previous_high;
+let previous_date = null;
+let previous_open = null;
+let previous_close = null;
+let previous_low = null;
+let previous_high = null;
 
 let orderList = []
 let orderListOCO = []
@@ -270,20 +270,35 @@ function updateOrder(order){
 }
 
 function updateOCOOrder(order){
-  let result = order
-
+  let side = order.orderReports[0].side
   if (order.orderReports[0].side == "SELL"){
     let limit = order.orderReports[1].price
     let stop = order.orderReports[0].price
     if (order.orderReports[0].status == "NEW") {
       if (current_low <= limit) {
-        // desactivar la otra orden de stop [0]
-        order.orderReports[1].status = "FILLED" // TODO Filled or partially filled
+        if (Math.random() < filled_probabilty){
+          order.orderReports[1].status = "FILLED"
+          order.orderReports[1].executedQty = order.orderReports[1].origQty
+        }else{
+          let qty = Math.random() * order.orderReports[1].origQty
+          if (transfer(side, qty, limit)) {
+            order.orderReports[1].status = "PARTIALLY_FILLED"
+            order.orderReports[1].executedQty = qty
+          }
+        }
         order.orderReports[0].status = "CANCELED"
       }else if(current_high >= stop){
-        // desactivar la otra orden de limit [1]
         order.orderReports[1].status = "CANCELED"
-        order.orderReports[0].status = "FILLED" // TODO Filled or partially filled
+        if (Math.random() < filled_probabilty){
+          order.orderReports[0].status = "FILLED"
+          order.orderReports[0].executedQty = order.orderReports[0].origQty
+        }else{
+          let qty = Math.random() * order.orderReports[0].origQty
+          if (transfer(side, qty, stop)) {
+            order.orderReports[0].status = "PARTIALLY_FILLED"
+            order.orderReports[0].executedQty = Math.random() * order.orderReports[0].origQty
+          }
+        }
       }
     }
   }else if(order.orderReports[0].side == "BUY"){
@@ -291,14 +306,63 @@ function updateOCOOrder(order){
     let stop = order.orderReports[0].price
     if (order.orderReports[0].status == "NEW") {
       if (current_high >= limit){
-        order.orderReports[1].status = "FILLED" // TODO Filled or partially filled
+        if (Math.random() < filled_probabilty){
+          order.orderReports[1].status = "FILLED"
+          order.orderReports[1].executedQty = order.orderReports[1].origQty
+        }else{
+          let qty = Math.random() * order.orderReports[1].origQty
+          if (transfer(side, qty, limit)) {
+            order.orderReports[1].status = "PARTIALLY_FILLED"
+            order.orderReports[1].executedQty = Math.random() * order.orderReports[1].origQty
+          }
+        }
         order.orderReports[0].status = "CANCELED"
       }else if(current_low <= stop){
         order.orderReports[1].status = "CANCELED"
-        order.orderReports[0].status = "FILLED" // TODO Filled or partially filled
+        if (Math.random() < filled_probabilty){
+          order.orderReports[0].status = "FILLED"
+          order.orderReports[0].executedQty = order.orderReports[0].origQty
+        }else{
+          let qty = Math.random() * order.orderReports[0].origQty
+          if (transfer(side, qty, stop)) {
+            order.orderReports[0].status = "PARTIALLY_FILLED"
+            order.orderReports[0].executedQty = Math.random() * order.orderReports[1].origQty
+          }
+        }
       }
     }
   }
+  if(order.orderReports[0].status = "PARTIALLY_FILLED"){
+    let remaining_qty = order.orderReports[0].origQty - order.orderReports[0].executedQty
+    if (Math.random() < filled_probabilty){
+      if (transfer(side, remaining_qty, current_price)){
+        order.orderReports[0].status = "FILLED"
+        order.orderReports[0].executedQty = order.orderReports[0].origQty
+      }
+    }else{
+      let qty = Math.random() * remaining_qty
+      if (transfer(side, qty, current_price)){
+        order.orderReports[0].status = "PARTIALLY_FILLED"
+        order.orderReports[0].executedQty = order.orderReports[0].executedQty + qty
+      }
+    }
+  }
+  if(order.orderReports[1].status = "PARTIALLY_FILLED"){
+    let remaining_qty = order.orderReports[1].origQty - order.orderReports[1].executedQty
+    if (Math.random() < filled_probabilty){
+      if (transfer(side, remaining_qty, current_price)){
+        order.orderReports[1].status = "FILLED"
+        order.orderReports[1].executedQty = order.orderReports[1].origQty
+      }
+    }else{
+      let qty = Math.random() * remaining_qty
+      if (transfer(side, qty, current_price)){
+        order.orderReports[1].status = "PARTIALLY_FILLED"
+        order.orderReports[1].executedQty = order.orderReports[1].executedQty + qty
+      }
+    }
+  }
+  return order
 }
 
 function updateOCOOrders(){
