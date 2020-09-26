@@ -172,15 +172,30 @@ app.post('/api/v3/order/oco', function(req, res) {
 });
 
 app.get('/api/v3/allOrders', function(req, res) {
-  let params = req.query
-  let startTime = 0
-  let endTime = getMilliseconds()
   
   
 });
 
 app.get('/api/v3/allOrderList', function(req, res) {
-  // TODO check path and implement
+  let params = req.query
+  let limit = 1000
+  let startTime = 0
+  let endTime = getMilliseconds()
+  if (params.startTime){
+    startTime = parseInt(params.startTime)
+  }
+  if (params.endTime){
+    endTime = parseInt(params.endTime)
+  }
+  if (params.limit){
+    limit = parseInt(params.limit)
+  }
+  result = orderListOCO.filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime))
+  if (result.length > limit){
+    res.send(result.slice(-1 * limit))
+  }else{
+    res.send(result)
+  }
 });
 
 app.get('/api/v3/openOrders', function(req, res) {
