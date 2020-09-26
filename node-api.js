@@ -26,11 +26,15 @@ let orderListOCO = []
 let current_order_id = 0
 let current_order_list_id = 0
 
+let last_index_requested_orders = 0
+let last_index_requested_oco_orders = 0
+
 let current_balance = 10000;
 let usdt_balance = 100000000;
 
 const liner = new lineByLine('20192020.csv');
 // initialize values from first two lines
+liner.next().toString('utf-8')
 updateCandlestickValues(liner.next().toString('utf-8'))
 updateCandlestickValues(liner.next().toString('utf-8'))
 
@@ -41,14 +45,18 @@ var router = express.Router();
 var port = process.env.PORT || 80;
 //return static page with websocket client
 app.get('/api/v3/account', function(req, res) {
-    res.send({
-        balances: [
-            {
-                asset: "BTC",
-                free: current_balance
-            }
-        ]
-    })
+  res.send({
+    balances: [
+      {
+        asset: "BTC",
+        free: current_balance
+      },
+      {
+        asset: "USDT",
+        free: usdt_balance
+      }
+    ]
+  })
 });
 
 app.post('/api/v3/order', function(req, res) {
@@ -104,7 +112,6 @@ app.post('/api/v3/order/oco', function(req, res) {
 
     let transactTime = getMilliseconds()
 
-    // TODO finish
     let order = {
         orderListId: current_order_list_id,
         contingencyType: "OCO",
@@ -165,7 +172,11 @@ app.post('/api/v3/order/oco', function(req, res) {
 });
 
 app.get('/api/v3/allOrders', function(req, res) {
-   // TODO
+  let params = req.query
+  let startTime = 0
+  let endTime = getMilliseconds()
+  
+  
 });
 
 app.get('/api/v3/allOrderList', function(req, res) {
