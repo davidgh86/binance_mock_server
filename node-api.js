@@ -5,11 +5,20 @@ var connectedUsers = [];
 const lineByLine = require('n-readlines');
 const { v4: uuidv4 } = require('uuid');
 
+const filled_probabilty = 0.90
+
+let current_date;
 let current_open;
 let current_close;
 let current_low;
 let current_high;
 let current_price;
+
+let previous_date;
+let previous_open;
+let previous_close;
+let previous_low;
+let previous_high;
 
 let orderList = []
 let orderListOCO = []
@@ -17,11 +26,13 @@ let orderListOCO = []
 let current_order_id = 0
 let current_order_list_id = 0
 
-let current_balance = 1000;
-let usdt_balance = 1000000000;
+let current_balance = 10000;
+let usdt_balance = 100000000;
 
 const liner = new lineByLine('20192020.csv');
-console.log(liner.next().toString('utf-8'))
+// initialize values from first two lines
+updateCandlestickValues(liner.next().toString('utf-8'))
+updateCandlestickValues(liner.next().toString('utf-8'))
 
 //init Express
 var app = express();
@@ -57,8 +68,8 @@ app.post('/api/v3/order', function(req, res) {
         transactTime: getMilliseconds(), //1507725176595,
         price: params.price,
         origQty: params.quantity,
-        executedQty: "0",
-        cummulativeQuoteQty: "10.00000000",
+        executedQty: 0.0,
+        cummulativeQuoteQty: 10.0,
         status: "NEW",
         timeInForce: params.timeInForce,
         type: params.type,
@@ -157,10 +168,18 @@ app.get('/api/v3/allOrders', function(req, res) {
    // TODO
 });
 
+app.get('/api/v3/allOrderList', function(req, res) {
+  // TODO check path and implement
+});
+
 app.get('/api/v3/openOrders', function(req, res) {
   // TODO
 });
 
+function updateOCOAndOrdinary() {
+  updateOCOOrders()
+  updateOrders()
+}
 
 function updateOrders(){
   for (let i = 0; i<orderList.length; i++){
@@ -169,12 +188,117 @@ function updateOrders(){
   }
 }
 
+function transfer(side, size, price){
+  let usdt_amount = size*price
+  if (side == "SELL"){
+    if (current_balance >= size){
+      current_balance -= size;
+      usdt_balance += usdt_amount;
+      return true
+    }
+  }else if(side == "BUY"){
+    if (usdt_balance >= usdt_amount){
+      current_balance += size;
+      usdt_balance -= usdt_amount;
+      return true
+    }
+  }
+  return false
+}
+
 function updateOrder(order){
-  // TODO
+  let result = order
+
+  let order_status = order.status
+  let order_executed_qty = order.executedQty
+
+  if (order_status == "NEW"){
+    if (order.side == "BUY"){
+      if (current_high > order.price){
+        let rand = Math.random()
+        if (rand < filled_probabilty){
+          if (transfer(order.side, order.origQty, order.price)){
+            order_status = "FILLED"
+            order_executed_qty = order.origQty
+          }
+        }else {
+          let cuant_to_exec = Math.random() * order.origQty
+          if (transfer(order.side, cuant_to_exec, current_price)){
+            order_status = "PARTIALLY_FILLED"
+            order_executed_qty = Math.random() * order.origQty
+          }
+        }
+      }
+    } else if(order.side == "SELL"){
+      if (current_low < order.price){
+        let rand = Math.random()
+        if (rand < filled_probabilty){
+          if (transfer(order.side, order.origQty, order.price)){
+            order_status = "FILLED"
+            order_executed_qty = order.origQty
+          }
+        }else {
+          let cuant_to_exec = Math.random() * order.origQty
+          if (transfer(order.side, cuant_to_exec, current_price)){
+            order_status = "PARTIALLY_FILLED"
+            order_executed_qty = Math.random() * order.origQty
+          }
+        }
+      }
+    }
+  } else if (order_status == "PARTIALLY_FILLED"){
+    if (rand < filled_probabilty){
+      let qty_to_fill = order.origQty - order.executedQty
+      if (transfer(order.side, qty_to_fill, current_price)){
+        order_status = "FILLED"
+        order_executed_qty = order.origQty
+      }
+    }else {
+      let remaining_qty_to_fill = order.origQty - order.executedQty
+      let qty_to_fill = Math.random() * remaining_qty_to_fill
+      if (transfer(order.side, qty_to_fill, current_price)){
+        order_status = "PARTIALLY_FILLED"
+        order_executed_qty = order.executedQty + qty_to_fill
+      }
+    }
+  }
+
+  result.status = order_status
+  result.executedQty = order_executed_qty
+
+  return result
 }
 
 function updateOCOOrder(order){
-  // TODO
+  let result = order
+
+  if (order.orderReports[0].side == "SELL"){
+    let limit = order.orderReports[1].price
+    let stop = order.orderReports[0].price
+    if (order.orderReports[0].status == "NEW") {
+      if (current_low <= limit) {
+        // desactivar la otra orden de stop [0]
+        order.orderReports[1].status = "FILLED" // TODO Filled or partially filled
+        order.orderReports[0].status = "CANCELED"
+      }else if(current_high >= stop){
+        // desactivar la otra orden de limit [1]
+        order.orderReports[1].status = "CANCELED"
+        order.orderReports[0].status = "FILLED" // TODO Filled or partially filled
+      }
+    }
+  }else if(order.orderReports[0].side == "BUY"){
+    let limit = order.orderReports[1].price
+    let stop = order.orderReports[0].price
+    if (order.orderReports[0].status == "NEW") {
+      if (current_high >= limit){
+        order.orderReports[1].status = "FILLED" // TODO Filled or partially filled
+        order.orderReports[0].status = "CANCELED"
+      }else if(current_low <= stop){
+        order.orderReports[1].status = "CANCELED"
+        order.orderReports[0].status = "FILLED" // TODO Filled or partially filled
+      }
+    }
+  }
 }
 
 function updateOCOOrders(){
@@ -199,27 +323,42 @@ wss.on('connection', function connection(ws) {
     
     setInterval(()=> {
         line = liner.next().toString('utf-8')
-        fields = line.split(",")
-        parts = fields[0].match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-        date = Date.UTC(+parts[1], parts[2]-1, +parts[3], +parts[4], +parts[5], +parts[6])
 
-        current_open = parseFloat(fields[1])
-        current_close = parseFloat(fields[4])
-        current_high = parseFloat(fields[2])
-        current_low = parseFloat(fields[3])
-    
+        updateCandlestickValues(line)
+        updateOCOAndOrdinary()
+
         fields_json = {
             k: {
-                t: date,
-                o: current_open,
-                c: current_close,
-                h: current_high,
-                l: current_low
+                t: previous_date,
+                o: previous_open,
+                c: previous_close,
+                h: previous_high,
+                l: previous_low
             }
         }
         ws.send(JSON.stringify(fields_json));
     }, 2000);
 });
+
+function updateCandlestickValues(line) {
+  previous_date = current_date
+  fields = line.split(",")
+  parts = fields[0].match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+  current_date = Date.UTC(+parts[1], parts[2]-1, +parts[3], +parts[4], +parts[5], +parts[6])
+
+  previous_close = current_close
+  previous_open = current_open
+  previous_high = current_high
+  previous_low = current_low
+
+  current_open = parseFloat(fields[1])
+  current_close = parseFloat(fields[4])
+  current_high = parseFloat(fields[2])
+  current_low = parseFloat(fields[3])
+
+  previous_price = current_price
+  current_price = Math.random() * (current_high - current_low) + current_low;
+}
 
 function getMilliseconds(){
     const now = new Date()  
