@@ -26,9 +26,6 @@ let orderListOCO = []
 let current_order_id = 0
 let current_order_list_id = 0
 
-let last_index_requested_orders = 0
-let last_index_requested_oco_orders = 0
-
 let current_balance = 10000;
 let usdt_balance = 100000000;
 
@@ -172,7 +169,46 @@ app.post('/api/v3/order/oco', function(req, res) {
 });
 
 app.get('/api/v3/allOrders', function(req, res) {
+  let params = req.query
+  let limit = 1000
+  let startTime = 0
+  let endTime = getMilliseconds()
+  if (params.startTime){
+    startTime = parseInt(params.startTime)
+  }
+  if (params.endTime){
+    endTime = parseInt(params.endTime)
+  }
+  if (params.limit){
+    limit = parseInt(params.limit)
+    if (limit > 1000){
+      limit = 1000
+    }
+    if (limit < 0) {
+      limit = 0
+    }
+  }
+  result = orderList.filter(order => (order.transactTime>=startTime && order.transactTime<=endTime))
+  resultOCO = orderListOCO
+    .filter(order => (order.transactTime>=startTime && order.transactTime<=endTime))
+    .flatMap(order => order.orderReports)
   
+  if (result.length > limit){
+    result = result.slice(-1 * limit)
+  }
+  if (resultOCO.length > limit){
+    resultOCO = resultOCO.slice(-1 * limit)
+  }
+  result = result.concat(resultOCO)
+  result = result.sort((a, b) => (b.transactTime - a-transactTime))
+
+  if (result.length > limit){
+    result = result.slice(-1 * limit)
+  }
+
+  result = result.map((x) => transformOrderValues(x))
+
+  res.send(result)
   
 });
 
@@ -205,7 +241,32 @@ app.get('/api/v3/allOrderList', function(req, res) {
 });
 
 app.get('/api/v3/openOrders', function(req, res) {
-  // TODO
+  let params = req.query
+  let limit = 1000
+  let startTime = 0
+  let endTime = getMilliseconds()
+  if (params.startTime){
+    startTime = parseInt(params.startTime)
+  }
+  if (params.endTime){
+    endTime = parseInt(params.endTime)
+  }
+  if (params.limit){
+    limit = parseInt(params.limit)
+    if (limit > 1000){
+      limit = 1000
+    }
+    if (limit < 0) {
+      limit = 0
+    }
+  }
+  result = orderList.filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime && 
+    (order.status=="NEW" || order.status=="PARTIALLY_FILLED")))
+  if (result.length > limit){
+    res.send(result.slice(-1 * limit))
+  }else{
+    res.send(result)
+  }
 });
 
 function updateOCOAndOrdinary() {
@@ -397,6 +458,29 @@ function updateOCOOrder(order){
   return order
 }
 
+function transformOrderValues(){
+  let holder = JSON.stringify(person)
+  let result = JSON.parse(holder)
+
+  if (result.price){
+    result.price = result.price.toFixed(8)
+  }
+  if (result.origQty){
+    result.origQty = result.origQty.toFixed(8)
+  }
+  if (result.executedQty){
+    result.executedQty = result.executedQty.toFixed(8)
+  }
+  if (result.cummulativeQuoteQty){
+    result.cummulativeQuoteQty = result.cummulativeQuoteQty.toFixed(8)
+  }
+  if (result.stopPrice){
+    result.stopPrice = result.stopPrice.toFixed(8)
+  }
+
+  return result
+}
+
 function updateOCOOrders(){
   for (let i = 0; i<orderListOCO; i++){
     let updatedOrder = updateOCOOrder(orderListOCO[i])
@@ -457,7 +541,5 @@ function updateCandlestickValues(line) {
 }
 
 function getMilliseconds(){
-    const now = new Date()  
-    const secondsSinceEpoch = Math.round(now.getTime()) 
-    return secondsSinceEpoch
+  return Math.ceil(Math.random() * (current_date - previous_date - 1) + previous_date)
 }
