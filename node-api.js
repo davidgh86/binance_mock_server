@@ -206,9 +206,7 @@ app.get('/api/v3/allOrders', function(req, res) {
     result = result.slice(-1 * limit)
   }
 
-  result = result.map((x) => transformOrderValues(x))
-
-  res.send(result)
+  res.send(result.map((x) => transformOrderValues(x)))
   
 });
 
