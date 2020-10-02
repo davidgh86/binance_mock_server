@@ -1,6 +1,7 @@
 const SocketServer = require('ws').Server;
 var express = require('express');
 var path = require('path');
+var toFixed = require('tofixed');
 var connectedUsers = [];
 const lineByLine = require('n-readlines');
 const { v4: uuidv4 } = require('uuid');
@@ -58,6 +59,9 @@ app.get('/api/v3/account', function(req, res) {
 
 app.post('/api/v3/order', function(req, res) {
     let params = req.query
+    console.log("*********************************")
+    console.log("Creating order -> " + JSON.stringify(params))
+    console.log("*********************************")
     if ((params.side === "SELL" && params.price > current_price) || (params.side === "BUY" && params.price < current_price)) {
       response = {
         code: -2010,
@@ -96,11 +100,35 @@ app.get('/api/v3/order', function(req, res) {
   let params = req.query
   let orderId = params.orderId
   let order = getOrderFromList(orderId)
-  res.send(order)
+  console.log("Order ("+orderId+")->>>> "+JSON.stringify(order))
+  if (order == null){
+    res.status(404)
+  }else{
+    res.send(order)
+  }
 });
 
+function getOrderFromList(orderId){
+  result = orderList.filter(order => (order.orderId == orderId))
+  if (result.length > 0){
+    return result[0]
+  }
+  result = orderListOCO.flatMap(order => order.orderReports).filter(order => (order.orderId == orderId))
+  if (result.length > 0){
+    return result[0]
+  }
+
+  return null
+    
+}
+
 app.post('/api/v3/order/oco', function(req, res) {
+  
     let params = req.query
+
+    console.log("*********************************")
+    console.log("Creating OCO order -> " + JSON.stringify(params))
+    console.log("*********************************")
 
     let orderId1 = uuidv4()
     let orderId2 = uuidv4()
@@ -172,7 +200,7 @@ app.get('/api/v3/allOrders', function(req, res) {
   let params = req.query
   let limit = 1000
   let startTime = 0
-  let endTime = getMilliseconds()
+  let endTime = 25463415625570
   if (params.startTime){
     startTime = parseInt(params.startTime)
   }
@@ -456,24 +484,24 @@ function updateOCOOrder(order){
   return order
 }
 
-function transformOrderValues(){
-  let holder = JSON.stringify(person)
+function transformOrderValues(order){
+  let holder = JSON.stringify(order)
   let result = JSON.parse(holder)
 
   if (result.price){
-    result.price = result.price.toFixed(8)
+    result.price = toFixed(result.price, 8)
   }
   if (result.origQty){
-    result.origQty = result.origQty.toFixed(8)
+    result.origQty = toFixed(result.origQty, 8)
   }
   if (result.executedQty){
-    result.executedQty = result.executedQty.toFixed(8)
+    result.executedQty = toFixed(result.executedQty, 8)
   }
   if (result.cummulativeQuoteQty){
-    result.cummulativeQuoteQty = result.cummulativeQuoteQty.toFixed(8)
+    result.cummulativeQuoteQty = toFixed(result.cummulativeQuoteQty, 8)
   }
   if (result.stopPrice){
-    result.stopPrice = result.stopPrice.toFixed(8)
+    result.stopPrice = toFixed(result.stopPrice, 8)
   }
 
   return result
