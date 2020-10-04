@@ -88,9 +88,11 @@ app.post('/api/v3/order', function(req, res) {
         let rand = Math.random()
         if (rand < filled_probabilty){
           order["status"] = "FILLED"
+          order["executedQty"] = order["origQty"]
         }
         else{
           order["status"] = "PARTIALLY_FILLED"
+          order["executedQty"] = Math.random() * order["origQty"]
         }
       }
       orderList.push(order)
