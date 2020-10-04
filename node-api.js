@@ -120,6 +120,35 @@ app.get('/api/v3/order', function(req, res) {
   }
 });
 
+function cancelOrder(orderId){
+  let index = orderList.findIndex(order => (order.orderId == orderId))
+  if (index >= 0){
+    let order = orderList[index]
+    order["status"] = "CANCELED"
+    orderList[index] = order
+    return order
+  }
+  index = orderListOCO.findIndex(order => (order.orderReports[0].orderId ==  orderId || order.orderReports[1].orderId ==  orderId))
+  if (index >= 0){
+    let order = orderListOCO[index]
+    if(order.orderReports[0].orderId ==  orderId){
+      let orderReport = order.orderReports[0]
+      orderReport["status"] = "CANCELED"
+      order.orderReports[0]=orderReport
+      orderListOCO[index] = order
+      order.orderReports[0]
+      return orderListOCO[index].orderReports[0]
+    }else{
+      let orderReport = order.orderReports[1]
+      orderReport["status"] = "CANCELED"
+      order.orderReports[1]=orderReport
+      orderListOCO[index] = order
+      return orderListOCO[index].orderReports[1]
+    }
+  }
+  return null
+}
+
 function getOrderFromList(orderId){
   result = orderList.filter(order => (order.orderId == orderId))
   if (result.length > 0){
@@ -240,7 +269,7 @@ app.get('/api/v3/allOrders', function(req, res) {
     resultOCO = resultOCO.slice(-1 * limit)
   }
   result = result.concat(resultOCO)
-  result = result.sort((a, b) => (b.transactTime - a-transactTime))
+  result = result.sort((a, b) => (b.transactTime - a.transactTime))
 
   if (result.length > limit){
     result = result.slice(-1 * limit)
@@ -277,6 +306,18 @@ app.get('/api/v3/allOrderList', function(req, res) {
     res.send(result)
   }
 });
+
+app.delete('/api/v3/order', function(req, res) {
+  let params = req.query
+  let orderId = parseInt(params.orderId)
+  let cancelledOrder = cancelOrder(orderId)
+  if (!cancelledOrder){
+    res.status(404)
+  }
+  else{
+    res.send(cancelledOrder)
+  }
+})
 
 app.get('/api/v3/openOrders', function(req, res) {
   let params = req.query
@@ -378,6 +419,7 @@ function updateOrder(order){
       }
     }
   } else if (order_status == "PARTIALLY_FILLED"){
+    let rand = Math.random()
     if (rand < filled_probabilty){
       let qty_to_fill = order.origQty - order.executedQty
       if (transfer(order.side, qty_to_fill, current_price)){
