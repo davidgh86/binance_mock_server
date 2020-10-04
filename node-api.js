@@ -85,6 +85,7 @@ app.post('/api/v3/order', function(req, res) {
         side: params.side
       }
       if (order.type == "MARKET"){
+        order["price"] = current_price
         let rand = Math.random()
         if (rand < filled_probabilty){
           order["status"] = "FILLED"
