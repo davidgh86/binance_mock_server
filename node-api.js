@@ -84,6 +84,15 @@ app.post('/api/v3/order', function(req, res) {
         type: params.type,
         side: params.side
       }
+      if (order.type == "MARKET"){
+        let rand = Math.random()
+        if (rand < filled_probabilty){
+          order["status"] = "FILLED"
+        }
+        else{
+          order["status"] = "PARTIALLY_FILLED"
+        }
+      }
       orderList.push(order)
       current_order_id = current_order_id + 1
       res.send({
