@@ -126,7 +126,7 @@ function cancelOrder(orderId){
     let order = orderList[index]
     order["status"] = "CANCELED"
     orderList[index] = order
-    return order
+    return transformOrderValues(order)
   }
   index = orderListOCO.findIndex(order => (order.orderReports[0].orderId ==  orderId || order.orderReports[1].orderId ==  orderId))
   if (index >= 0){
@@ -137,13 +137,13 @@ function cancelOrder(orderId){
       order.orderReports[0]=orderReport
       orderListOCO[index] = order
       order.orderReports[0]
-      return orderListOCO[index].orderReports[0]
+      return transformOrderValues(orderListOCO[index].orderReports[0])
     }else{
       let orderReport = order.orderReports[1]
       orderReport["status"] = "CANCELED"
       order.orderReports[1]=orderReport
       orderListOCO[index] = order
-      return orderListOCO[index].orderReports[1]
+      return transformOrderValues(orderListOCO[index].orderReports[1])
     }
   }
   return null
