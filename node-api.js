@@ -5,6 +5,7 @@ var toFixed = require('tofixed');
 var connectedUsers = [];
 const lineByLine = require('n-readlines');
 const { v4: uuidv4 } = require('uuid');
+const events = require('events');
 
 const filled_probabilty = 0.90
 
@@ -30,6 +31,12 @@ let current_order_list_id = 0
 let current_balance = 10000;
 let usdt_balance = 100000000;
 
+let wsConnected = false;
+let line;
+
+const em = new events.EventEmitter();
+
+
 const liner = new lineByLine('20192020.csv');
 // initialize values from first two lines
 liner.next().toString('utf-8')
@@ -42,6 +49,17 @@ var app = express();
 var router = express.Router();
 var port = process.env.PORT || 80;
 //return static page with websocket client
+
+
+app.post('/api/next_value', function(req, res) {
+  if (wsConnected){
+    em.emit("next_line")
+    res.status(200).send({message: "OK"})
+  }else{
+    res.status(400).send({message: "Not connected to ws"})
+  }
+});
+
 app.get('/api/v3/account', function(req, res) {
   res.send({
     balances: [
@@ -579,25 +597,26 @@ const wss = new SocketServer({
 //init Websocket ws and handle incoming connect requests
 wss.on('connection', function connection(ws) {
 
-    let line;
-    
-    setInterval(()=> {
-        line = liner.next().toString('utf-8')
+  wsConnected = true
+  
+  em.on('next_line', () => {
+    line = liner.next().toString('utf-8')
 
-        updateCandlestickValues(line)
-        updateOCOAndOrdinary()
+    updateCandlestickValues(line)
+    updateOCOAndOrdinary()
 
-        fields_json = {
-            k: {
-                t: previous_date,
-                o: previous_open,
-                c: previous_close,
-                h: previous_high,
-                l: previous_low
-            }
+    fields_json = {
+        k: {
+            t: previous_date,
+            o: previous_open,
+            c: previous_close,
+            h: previous_high,
+            l: previous_low
         }
-        ws.send(JSON.stringify(fields_json));
-    }, 2000);
+    }
+    ws.send(JSON.stringify(fields_json));
+  });
+  
 });
 
 function updateCandlestickValues(line) {
