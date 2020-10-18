@@ -53,8 +53,8 @@ var port = process.env.PORT || 80;
 
 app.post('/api/next_value', function(req, res) {
   if (wsConnected){
-    em.emit("next_line")
     res.status(200).send({message: "OK"})
+    em.emit("next_line") 
   }else{
     res.status(400).send({message: "Not connected to ws"})
   }
@@ -132,7 +132,7 @@ app.get('/api/v3/order', function(req, res) {
   let order = getOrderFromList(orderId)
   console.log("Order ("+orderId+")->>>> "+JSON.stringify(order))
   if (order == null){
-    res.status(404)
+    res.status(404).send()
   }else{
     res.send(order)
   }
@@ -330,7 +330,10 @@ app.delete('/api/v3/order', function(req, res) {
   let orderId = parseInt(params.orderId)
   let cancelledOrder = cancelOrder(orderId)
   if (!cancelledOrder){
-    res.status(404)
+    res.status(400).send({
+      code: -2011,
+      msg: "Unknown order sent."
+  })
   }
   else{
     res.send(cancelledOrder)
@@ -379,17 +382,17 @@ function updateOrders(){
 }
 
 function transfer(side, size, price){
-  let usdt_amount = size*price
+  let usdt_amount = parseInt(size)*parseInt(price)
   if (side == "SELL"){
-    if (current_balance >= size){
-      current_balance -= size;
-      usdt_balance += usdt_amount;
+    if (current_balance >= parseInt(size)){
+      current_balance -= parseInt(size);
+      usdt_balance += parseInt(usdt_amount);
       return true
     }
   }else if(side == "BUY"){
-    if (usdt_balance >= usdt_amount){
-      current_balance += size;
-      usdt_balance -= usdt_amount;
+    if (usdt_balance >= parseInt(usdt_amount)){
+      current_balance += parseInt(size);
+      usdt_balance -= parseInt(usdt_amount);
       return true
     }
   }
@@ -600,24 +603,32 @@ wss.on('connection', function connection(ws) {
   wsConnected = true
   
   em.on('next_line', () => {
-    line = liner.next().toString('utf-8')
-
-    updateCandlestickValues(line)
-    updateOCOAndOrdinary()
-
-    fields_json = {
-        k: {
-            t: previous_date,
-            o: previous_open,
-            c: previous_close,
-            h: previous_high,
-            l: previous_low
-        }
-    }
-    ws.send(JSON.stringify(fields_json));
+    sendNextLine(ws);
+    
   });
+
+  sendNextLine(ws);
+  sendNextLine(ws);
   
 });
+
+function sendNextLine(ws) {
+  line = liner.next().toString('utf-8');
+
+  updateCandlestickValues(line);
+  updateOCOAndOrdinary();
+
+  fields_json = {
+    k: {
+      t: previous_date,
+      o: previous_open,
+      c: previous_close,
+      h: previous_high,
+      l: previous_low
+    }
+  };
+  ws.send(JSON.stringify(fields_json));
+}
 
 function updateCandlestickValues(line) {
   previous_date = current_date
