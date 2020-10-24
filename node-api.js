@@ -37,7 +37,7 @@ let line;
 const em = new events.EventEmitter();
 
 
-const liner = new lineByLine('20192020.csv');
+const liner = new lineByLine('test_20_20.csv');
 // initialize values from first two lines
 liner.next().toString('utf-8')
 updateCandlestickValues(liner.next().toString('utf-8'))
@@ -80,7 +80,7 @@ app.post('/api/v3/order', function(req, res) {
     console.log("*********************************")
     console.log("Creating order -> " + JSON.stringify(params))
     console.log("*********************************")
-    if ((params.side === "SELL" && params.price > current_price) || (params.side === "BUY" && params.price < current_price)) {
+    if ((params.side === "SELL" && parseFloat(params.price) > current_price) || (params.side === "BUY" && parseFloat(params.price) < current_price)) {
       response = {
         code: -2010,
         msg: "Order would trigger immediately."
@@ -93,8 +93,8 @@ app.post('/api/v3/order', function(req, res) {
         orderListId: -1, 
         clientOrderId: uuidv4(),
         transactTime: getMilliseconds(), //1507725176595,
-        price: params.price,
-        origQty: params.quantity,
+        price: parseFloat(params.price),
+        origQty: parseFloat(params.quantity),
         executedQty: 0.0,
         cummulativeQuoteQty: 10.0,
         status: "NEW",
@@ -223,15 +223,15 @@ app.post('/api/v3/order/oco', function(req, res) {
             orderListId: current_order_list_id,
             clientOrderId: orderId1,
             transactTime: transactTime,
-            price: params.stopLimitPrice,
-            origQty: params.quantity,
+            price: parseFloat(params.stopLimitPrice),
+            origQty: parseFloat(params.quantity),
             executedQty: 0.0,
             cummulativeQuoteQty: 0.0,
             status: "NEW",
             timeInForce: "GTC",
             type: "STOP_LOSS_LIMIT",
             side: params.side,
-            stopPrice: params.stopPrice
+            stopPrice: parseFloat(params.stopPrice)
           },
           {
             symbol: params.symbol,
@@ -239,8 +239,8 @@ app.post('/api/v3/order/oco', function(req, res) {
             orderListId: current_order_list_id,
             clientOrderId: orderId2,
             transactTime: transactTime,
-            price: params.price,
-            origQty: params.quantity,
+            price: parseFloat(params.price),
+            origQty: parseFloat(params.quantity),
             executedQty: 0.0,
             cummulativeQuoteQty: 0.0,
             status: "NEW",
@@ -277,7 +277,7 @@ app.get('/api/v3/allOrders', function(req, res) {
   }
   result = orderList.filter(order => (order.transactTime>=startTime && order.transactTime<=endTime))
   resultOCO = orderListOCO
-    .filter(order => (order.transactTime>=startTime && order.transactTime<=endTime))
+    .filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime))
     .flatMap(order => order.orderReports)
   
   if (result.length > limit){
@@ -382,17 +382,17 @@ function updateOrders(){
 }
 
 function transfer(side, size, price){
-  let usdt_amount = parseInt(size)*parseInt(price)
+  let usdt_amount = size*price
   if (side == "SELL"){
-    if (current_balance >= parseInt(size)){
-      current_balance -= parseInt(size);
-      usdt_balance += parseInt(usdt_amount);
+    if (current_balance >= size){
+      current_balance -= size;
+      usdt_balance += usdt_amount;
       return true
     }
   }else if(side == "BUY"){
-    if (usdt_balance >= parseInt(usdt_amount)){
-      current_balance += parseInt(size);
-      usdt_balance -= parseInt(usdt_amount);
+    if (usdt_balance >= usdt_amount){
+      current_balance += size;
+      usdt_balance -= usdt_amount;
       return true
     }
   }
@@ -469,7 +469,7 @@ function updateOCOOrder(order){
     let limit = order.orderReports[1].price
     let stop = order.orderReports[0].price
     if (order.orderReports[0].status == "NEW") {
-      if (current_low <= limit) {
+      if (current_low <= stop) {
         if (Math.random() < filled_probabilty){
           order.orderReports[1].status = "FILLED"
           order.orderReports[1].executedQty = order.orderReports[1].origQty
@@ -481,16 +481,16 @@ function updateOCOOrder(order){
           }
         }
         order.orderReports[0].status = "CANCELED"
-      }else if(current_high >= stop){
-        order.orderReports[1].status = "CANCELED"
+      }else if(current_high >= limit){
+        order.orderReports[0].status = "CANCELED"
         if (Math.random() < filled_probabilty){
-          order.orderReports[0].status = "FILLED"
-          order.orderReports[0].executedQty = order.orderReports[0].origQty
+          order.orderReports[1].status = "FILLED"
+          order.orderReports[1].executedQty = order.orderReports[1].origQty
         }else{
           let qty = Math.random() * order.orderReports[0].origQty
           if (transfer(side, qty, stop)) {
-            order.orderReports[0].status = "PARTIALLY_FILLED"
-            order.orderReports[0].executedQty = Math.random() * order.orderReports[0].origQty
+            order.orderReports[1].status = "PARTIALLY_FILLED"
+            order.orderReports[1].executedQty = Math.random() * order.orderReports[1].origQty
           }
         }
       }
@@ -520,13 +520,13 @@ function updateOCOOrder(order){
           let qty = Math.random() * order.orderReports[0].origQty
           if (transfer(side, qty, stop)) {
             order.orderReports[0].status = "PARTIALLY_FILLED"
-            order.orderReports[0].executedQty = Math.random() * order.orderReports[1].origQty
+            order.orderReports[0].executedQty = Math.random() * order.orderReports[0].origQty
           }
         }
       }
     }
   }
-  if(order.orderReports[0].status = "PARTIALLY_FILLED"){
+  if(order.orderReports[0].status == "PARTIALLY_FILLED"){
     let remaining_qty = order.orderReports[0].origQty - order.orderReports[0].executedQty
     if (Math.random() < filled_probabilty){
       if (transfer(side, remaining_qty, current_price)){
@@ -541,7 +541,7 @@ function updateOCOOrder(order){
       }
     }
   }
-  if(order.orderReports[1].status = "PARTIALLY_FILLED"){
+  if(order.orderReports[1].status == "PARTIALLY_FILLED"){
     let remaining_qty = order.orderReports[1].origQty - order.orderReports[1].executedQty
     if (Math.random() < filled_probabilty){
       if (transfer(side, remaining_qty, current_price)){
@@ -583,7 +583,7 @@ function transformOrderValues(order){
 }
 
 function updateOCOOrders(){
-  for (let i = 0; i<orderListOCO; i++){
+  for (let i = 0; i<orderListOCO.length; i++){
     let updatedOrder = updateOCOOrder(orderListOCO[i])
     orderListOCO[i] = updatedOrder
   }
@@ -613,21 +613,25 @@ wss.on('connection', function connection(ws) {
 });
 
 function sendNextLine(ws) {
-  line = liner.next().toString('utf-8');
+  if (read = liner.next()) {
+    line = read.toString('utf-8');
+    updateCandlestickValues(line);
+    updateOCOAndOrdinary();
 
-  updateCandlestickValues(line);
-  updateOCOAndOrdinary();
-
-  fields_json = {
-    k: {
-      t: previous_date,
-      o: previous_open,
-      c: previous_close,
-      h: previous_high,
-      l: previous_low
-    }
-  };
-  ws.send(JSON.stringify(fields_json));
+    fields_json = {
+      k: {
+        t: previous_date,
+        o: previous_open,
+        c: previous_close,
+        h: previous_high,
+        l: previous_low
+      }
+    };
+    ws.send(JSON.stringify(fields_json));
+  }else {
+    ws.send(JSON.stringify({end: true}));
+    wsConnected = false
+  }
 }
 
 function updateCandlestickValues(line) {
