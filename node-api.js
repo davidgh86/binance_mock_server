@@ -37,7 +37,7 @@ let line;
 const em = new events.EventEmitter();
 
 
-const liner = new lineByLine('test_20_20.csv');
+const liner = new lineByLine('test_10_23_25.csv');
 // initialize values from first two lines
 liner.next().toString('utf-8')
 updateCandlestickValues(liner.next().toString('utf-8'))
@@ -471,16 +471,16 @@ function updateOCOOrder(order){
     if (order.orderReports[0].status == "NEW") {
       if (current_low <= stop) {
         if (Math.random() < filled_probabilty){
-          order.orderReports[1].status = "FILLED"
-          order.orderReports[1].executedQty = order.orderReports[1].origQty
+          order.orderReports[0].status = "FILLED"
+          order.orderReports[0].executedQty = order.orderReports[0].origQty
         }else{
-          let qty = Math.random() * order.orderReports[1].origQty
+          let qty = Math.random() * order.orderReports[0].origQty
           if (transfer(side, qty, limit)) {
-            order.orderReports[1].status = "PARTIALLY_FILLED"
-            order.orderReports[1].executedQty = qty
+            order.orderReports[0].status = "PARTIALLY_FILLED"
+            order.orderReports[0].executedQty = qty
           }
         }
-        order.orderReports[0].status = "CANCELED"
+        order.orderReports[1].status = "CANCELED"
       }else if(current_high >= limit){
         order.orderReports[0].status = "CANCELED"
         if (Math.random() < filled_probabilty){
@@ -499,7 +499,7 @@ function updateOCOOrder(order){
     let limit = order.orderReports[1].price
     let stop = order.orderReports[0].price
     if (order.orderReports[0].status == "NEW") {
-      if (current_high >= limit){
+      if (current_low <= limit){
         if (Math.random() < filled_probabilty){
           order.orderReports[1].status = "FILLED"
           order.orderReports[1].executedQty = order.orderReports[1].origQty
@@ -511,7 +511,7 @@ function updateOCOOrder(order){
           }
         }
         order.orderReports[0].status = "CANCELED"
-      }else if(current_low <= stop){
+      }else if(current_high >= stop){
         order.orderReports[1].status = "CANCELED"
         if (Math.random() < filled_probabilty){
           order.orderReports[0].status = "FILLED"
