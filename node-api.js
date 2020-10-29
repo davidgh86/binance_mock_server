@@ -6,6 +6,8 @@ var connectedUsers = [];
 const lineByLine = require('n-readlines');
 const { v4: uuidv4 } = require('uuid');
 const events = require('events');
+const e = require('express');
+const { RSA_NO_PADDING } = require('constants');
 
 const filled_probabilty = 0.90
 
@@ -34,6 +36,8 @@ let usdt_balance = 100000000;
 let wsConnected = false;
 let line;
 
+let timeWindowErrorLast = false;
+
 const em = new events.EventEmitter();
 
 
@@ -61,6 +65,11 @@ app.post('/api/next_value', function(req, res) {
 });
 
 app.get('/api/v3/account', function(req, res) {
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
   res.send({
     balances: [
       {
@@ -76,57 +85,67 @@ app.get('/api/v3/account', function(req, res) {
 });
 
 app.post('/api/v3/order', function(req, res) {
-    let params = req.query
-    console.log("*********************************")
-    console.log("Creating order -> " + JSON.stringify(params))
-    console.log("*********************************")
-    if ((params.side === "SELL" && parseFloat(params.price) > current_price) || (params.side === "BUY" && parseFloat(params.price) < current_price)) {
-      response = {
-        code: -2010,
-        msg: "Order would trigger immediately."
-      }
-      res.status(400).send(response)
-    }else{
-      let order = {
-        symbol: params.symbol,
-        orderId: current_order_id,
-        orderListId: -1, 
-        clientOrderId: uuidv4(),
-        transactTime: getMilliseconds(), //1507725176595,
-        price: parseFloat(params.price),
-        origQty: parseFloat(params.quantity),
-        executedQty: 0.0,
-        cummulativeQuoteQty: 10.0,
-        status: "NEW",
-        timeInForce: params.timeInForce,
-        type: params.type,
-        side: params.side
-      }
-      if (order.type == "MARKET"){
-        order["price"] = current_price
-        let rand = Math.random()
-        if (rand < filled_probabilty){
-          order["status"] = "FILLED"
-          order["executedQty"] = order["origQty"]
-        }
-        else{
-          order["status"] = "PARTIALLY_FILLED"
-          order["executedQty"] = Math.random() * order["origQty"]
-        }
-      }
-      orderList.push(order)
-      current_order_id = current_order_id + 1
-      res.send({
-        symbol: order.symbol,
-        orderId: order.orderId,
-        orderListId: order.orderListId,
-        clientOrderId: order.clientOrderId,
-        transactTime: order.transactTime
-      })
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
+  let params = req.query
+  console.log("*********************************")
+  console.log("Creating order -> " + JSON.stringify(params))
+  console.log("*********************************")
+  if ((params.side === "SELL" && parseFloat(params.price) > current_price) || (params.side === "BUY" && parseFloat(params.price) < current_price)) {
+    response = {
+      code: -2010,
+      msg: "Order would trigger immediately."
     }
+    res.status(400).send(response)
+  }else{
+    let order = {
+      symbol: params.symbol,
+      orderId: current_order_id,
+      orderListId: -1, 
+      clientOrderId: uuidv4(),
+      transactTime: getMilliseconds(), //1507725176595,
+      price: parseFloat(params.price),
+      origQty: parseFloat(params.quantity),
+      executedQty: 0.0,
+      cummulativeQuoteQty: 10.0,
+      status: "NEW",
+      timeInForce: params.timeInForce,
+      type: params.type,
+      side: params.side
+    }
+    if (order.type == "MARKET"){
+      order["price"] = current_price
+      let rand = Math.random()
+      if (rand < filled_probabilty){
+        order["status"] = "FILLED"
+        order["executedQty"] = order["origQty"]
+      }
+      else{
+        order["status"] = "PARTIALLY_FILLED"
+        order["executedQty"] = Math.random() * order["origQty"]
+      }
+    }
+    orderList.push(order)
+    current_order_id = current_order_id + 1
+    res.send({
+      symbol: order.symbol,
+      orderId: order.orderId,
+      orderListId: order.orderListId,
+      clientOrderId: order.clientOrderId,
+      transactTime: order.transactTime
+    })
+  }
 });
 
 app.get('/api/v3/order', function(req, res) {
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
   let params = req.query
   let orderId = params.orderId
   let order = getOrderFromList(orderId)
@@ -182,80 +201,89 @@ function getOrderFromList(orderId){
 }
 
 app.post('/api/v3/order/oco', function(req, res) {
-  
-    let params = req.query
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
+  let params = req.query
 
-    console.log("*********************************")
-    console.log("Creating OCO order -> " + JSON.stringify(params))
-    console.log("*********************************")
+  console.log("*********************************")
+  console.log("Creating OCO order -> " + JSON.stringify(params))
+  console.log("*********************************")
 
-    let orderId1 = uuidv4()
-    let orderId2 = uuidv4()
+  let orderId1 = uuidv4()
+  let orderId2 = uuidv4()
 
-    let clientId = uuidv4()
+  let clientId = uuidv4()
 
-    let transactTime = getMilliseconds()
+  let transactTime = getMilliseconds()
 
-    let order = {
-        orderListId: current_order_list_id,
-        contingencyType: "OCO",
-        listStatusType: "EXEC_STARTED",
-        listOrderStatus: "EXECUTING",
-        listClientOrderId: clientId,
-        transactionTime: transactTime,
-        symbol: params.symbol,
-        orders: [
-          {
-            symbol: params.symbol,
-            orderId: current_order_id,
-            clientOrderId: orderId1
-          },
-          {
-            symbol: params.symbol,
-            orderId: current_order_id+1,
-            clientOrderId: orderId2
-          }
-        ],
-        orderReports: [
-          {
-            symbol: params.symbol,
-            orderId: current_order_id,
-            orderListId: current_order_list_id,
-            clientOrderId: orderId1,
-            transactTime: transactTime,
-            price: parseFloat(params.stopLimitPrice),
-            origQty: parseFloat(params.quantity),
-            executedQty: 0.0,
-            cummulativeQuoteQty: 0.0,
-            status: "NEW",
-            timeInForce: "GTC",
-            type: "STOP_LOSS_LIMIT",
-            side: params.side,
-            stopPrice: parseFloat(params.stopPrice)
-          },
-          {
-            symbol: params.symbol,
-            orderId: current_order_id+1,
-            orderListId: current_order_list_id,
-            clientOrderId: orderId2,
-            transactTime: transactTime,
-            price: parseFloat(params.price),
-            origQty: parseFloat(params.quantity),
-            executedQty: 0.0,
-            cummulativeQuoteQty: 0.0,
-            status: "NEW",
-            timeInForce: "GTC",
-            type: "LIMIT_MAKER",
-            side: params.side
-          }
-        ]
-      }
-    orderListOCO.push(order)
-    current_order_id = current_order_id + 2
-    res.send(order)
+  let order = {
+      orderListId: current_order_list_id,
+      contingencyType: "OCO",
+      listStatusType: "EXEC_STARTED",
+      listOrderStatus: "EXECUTING",
+      listClientOrderId: clientId,
+      transactionTime: transactTime,
+      symbol: params.symbol,
+      orders: [
+        {
+          symbol: params.symbol,
+          orderId: current_order_id,
+          clientOrderId: orderId1
+        },
+        {
+          symbol: params.symbol,
+          orderId: current_order_id+1,
+          clientOrderId: orderId2
+        }
+      ],
+      orderReports: [
+        {
+          symbol: params.symbol,
+          orderId: current_order_id,
+          orderListId: current_order_list_id,
+          clientOrderId: orderId1,
+          transactTime: transactTime,
+          price: parseFloat(params.stopLimitPrice),
+          origQty: parseFloat(params.quantity),
+          executedQty: 0.0,
+          cummulativeQuoteQty: 0.0,
+          status: "NEW",
+          timeInForce: "GTC",
+          type: "STOP_LOSS_LIMIT",
+          side: params.side,
+          stopPrice: parseFloat(params.stopPrice)
+        },
+        {
+          symbol: params.symbol,
+          orderId: current_order_id+1,
+          orderListId: current_order_list_id,
+          clientOrderId: orderId2,
+          transactTime: transactTime,
+          price: parseFloat(params.price),
+          origQty: parseFloat(params.quantity),
+          executedQty: 0.0,
+          cummulativeQuoteQty: 0.0,
+          status: "NEW",
+          timeInForce: "GTC",
+          type: "LIMIT_MAKER",
+          side: params.side
+        }
+      ]
+    }
+  orderListOCO.push(order)
+  current_order_id = current_order_id + 2
+  res.send(order)
 });
 
 app.get('/api/v3/allOrders', function(req, res) {
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
   let params = req.query
   let limit = 1000
   let startTime = 0
@@ -298,6 +326,11 @@ app.get('/api/v3/allOrders', function(req, res) {
 });
 
 app.get('/api/v3/allOrderList', function(req, res) {
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
   let params = req.query
   let limit = 1000
   let startTime = 0
@@ -326,6 +359,11 @@ app.get('/api/v3/allOrderList', function(req, res) {
 });
 
 app.delete('/api/v3/order', function(req, res) {
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
   let params = req.query
   let orderId = parseInt(params.orderId)
   let cancelledOrder = cancelOrder(orderId)
@@ -341,6 +379,11 @@ app.delete('/api/v3/order', function(req, res) {
 })
 
 app.get('/api/v3/openOrders', function(req, res) {
+  if (mustSendTimeError()){
+    let error = getErrorTimeWindow()
+    res.send(error)
+    return;
+  }
   let params = req.query
   let limit = 1000
   let startTime = 0
@@ -656,4 +699,23 @@ function updateCandlestickValues(line) {
 
 function getMilliseconds(){
   return Math.ceil(Math.random() * (current_date - previous_date - 1) + previous_date)
+}
+
+function getErrorTimeWindow(){
+  errorObject = {
+    code:-1021,
+    msg:"Invalid symbol."
+  }
+  timeWindowErrorLast = true
+  return errorObject
+}
+
+function mustSendTimeError(){
+  if (timeWindowErrorLast){
+    return true 
+  }
+  if(Math.random < 0.9){
+    return true
+  }
+  return false
 }
