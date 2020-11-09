@@ -1,0 +1,27 @@
+{
+  "name": "websocket-rest-binance",
+  "version": "1.0.0",
+  "description": "",
+  "main": "node-api.js",
+  "dependencies": {
+    "line-reader": "^0.4.0",
+    "n-readlines": "^1.0.0",
+    "tofixed": "^1.0.0",
+    "uuid": "^8.3.0",
+    "ws": "^7.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidgh86/binance_mock_server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/davidgh86/binance_mock_server/issues"
+  },
+  "homepage": "https://github.com/davidgh86/binance_mock_server#readme"
+}
