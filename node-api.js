@@ -30,7 +30,7 @@ let orderListOCO = []
 let current_order_id = 0
 let current_order_list_id = 0
 
-let current_balance = 10000;
+let current_balance = 0.5;
 let usdt_balance = 100000000;
 
 let wsConnected = false;
@@ -40,8 +40,9 @@ let timeWindowErrorLast = false;
 
 const em = new events.EventEmitter();
 
+let filename = process.argv.slice(2);
 
-const liner = new lineByLine('test_10_23_25.csv');
+const liner = new lineByLine(filename[0]);
 // initialize values from first two lines
 liner.next().toString('utf-8')
 updateCandlestickValues(liner.next().toString('utf-8'))
@@ -67,9 +68,10 @@ app.post('/api/next_value', function(req, res) {
 app.get('/api/v3/account', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   res.send({
     balances: [
       {
@@ -87,9 +89,10 @@ app.get('/api/v3/account', function(req, res) {
 app.post('/api/v3/order', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
   console.log("*********************************")
   console.log("Creating order -> " + JSON.stringify(params))
@@ -143,9 +146,10 @@ app.post('/api/v3/order', function(req, res) {
 app.get('/api/v3/order', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
   let orderId = params.orderId
   let order = getOrderFromList(orderId)
@@ -203,9 +207,10 @@ function getOrderFromList(orderId){
 app.post('/api/v3/order/oco', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
 
   console.log("*********************************")
@@ -281,9 +286,10 @@ app.post('/api/v3/order/oco', function(req, res) {
 app.get('/api/v3/allOrders', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
   let limit = 1000
   let startTime = 0
@@ -328,9 +334,10 @@ app.get('/api/v3/allOrders', function(req, res) {
 app.get('/api/v3/allOrderList', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
   let limit = 1000
   let startTime = 0
@@ -361,9 +368,10 @@ app.get('/api/v3/allOrderList', function(req, res) {
 app.delete('/api/v3/order', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
   let orderId = parseInt(params.orderId)
   let cancelledOrder = cancelOrder(orderId)
@@ -381,9 +389,10 @@ app.delete('/api/v3/order', function(req, res) {
 app.get('/api/v3/openOrders', function(req, res) {
   if (mustSendTimeError()){
     let error = getErrorTimeWindow()
-    res.send(error)
+    res.status(400).send(error)
     return;
   }
+  timeWindowErrorLast = false;
   let params = req.query
   let limit = 1000
   let startTime = 0
@@ -712,10 +721,10 @@ function getErrorTimeWindow(){
 
 function mustSendTimeError(){
   if (timeWindowErrorLast){
-    return true 
+    return false 
   }
-  if(Math.random < 0.9){
-    return true
+  if(Math.random() < 0.9){
+    return false
   }
-  return false
+  return true
 }
