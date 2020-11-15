@@ -9,7 +9,7 @@ const events = require('events');
 const e = require('express');
 const { RSA_NO_PADDING } = require('constants');
 
-const filled_probabilty = 0.90
+const filled_probabilty = 1
 
 let current_date = null;
 let current_open = null;
@@ -720,11 +720,5 @@ function getErrorTimeWindow(){
 }
 
 function mustSendTimeError(){
-  if (timeWindowErrorLast){
-    return false 
-  }
-  if(Math.random() < 0.9){
-    return false
-  }
-  return true
+  return false;
 }
