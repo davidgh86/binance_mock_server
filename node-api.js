@@ -30,8 +30,8 @@ let orderListOCO = []
 let current_order_id = 0
 let current_order_list_id = 0
 
-let current_balance = 0.5;
-let usdt_balance = 100000000;
+let current_balance = 0.3;
+let usdt_balance = 1000;
 
 let wsConnected = false;
 let line;
