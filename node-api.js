@@ -437,14 +437,14 @@ function transfer(side, size, price){
   let usdt_amount = size*price
   if (side == "SELL"){
     if (current_balance >= size){
-      current_balance -= size;
-      usdt_balance += usdt_amount;
+      current_balance = current_balance - size;
+      usdt_balance = usdt_balance + usdt_amount;
       return true
     }
   }else if(side == "BUY"){
     if (usdt_balance >= usdt_amount){
-      current_balance += size;
-      usdt_balance -= usdt_amount;
+      current_balance = current_balance + size;
+      usdt_balance = usdt_balance - usdt_amount;
       return true
     }
   }
