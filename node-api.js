@@ -294,8 +294,10 @@ app.get('/api/v3/allOrders', function(req, res) {
   let limit = 1000
   let startTime = 0
   let endTime = 25463415625570
+  let cleanCache = false
   if (params.startTime){
     startTime = parseInt(params.startTime)
+    cleanCache = true
   }
   if (params.endTime){
     endTime = parseInt(params.endTime)
@@ -328,6 +330,11 @@ app.get('/api/v3/allOrders', function(req, res) {
   }
 
   res.send(result.map((x) => transformOrderValues(x)))
+
+  if (cleanCache){
+    orderList = orderList.filter(order => (order.transactTime>=startTime))
+    resultOCO = orderList.filter(order => (order.transactionTime>=startTime))
+  }
   
 });
 
