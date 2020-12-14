@@ -117,7 +117,9 @@ app.post('/api/v3/order', function(req, res) {
       status: "NEW",
       timeInForce: params.timeInForce,
       type: params.type,
-      side: params.side
+      side: params.side,
+      isWorking: false,
+      stopPrice: params.stopPrice?parseFloat(params.stopPrice):null
     }
     if (order.type == "MARKET"){
       order["price"] = current_price
@@ -459,6 +461,17 @@ function transfer(side, size, price){
 }
 
 function updateOrder(order){
+  if (order.type === "STOP_LOSS_LIMIT") {
+    return updateStopLossLimit(order)
+  }else if (order.type === "MARKET"){
+    return updateOrderMarket(order)
+  }else if (order.type === "LIMIT"){
+    return updateLimitOrder(order)
+  }
+
+}
+
+function updateOrderMarket(order){
   let result = order
 
   let order_status = order.status
@@ -516,6 +529,145 @@ function updateOrder(order){
     }
   }
 
+  result.status = order_status
+  result.executedQty = order_executed_qty
+
+  return result
+}
+
+function updateLimitOrder(order){
+  let result = order
+
+  let order_status = order.status
+  let order_executed_qty = order.executedQty
+
+  if (order_status == "NEW"){
+    if (order.side == "BUY"){
+      if (current_low <= order.price){
+        let rand = Math.random() 
+        if (rand < filled_probabilty){
+          if (transfer(order.side, order.origQty, order.price)){
+            order_status = "FILLED"
+            order_executed_qty = order.origQty
+          }
+        }else {
+          let cuant_to_exec = Math.random() * order.origQty
+          if (transfer(order.side, cuant_to_exec, current_price)){
+            order_status = "PARTIALLY_FILLED"
+            order_executed_qty = Math.random() * order.origQty
+          }
+        }
+      }
+    } else if(order.side == "SELL"){
+      if (current_high >= order.price){
+        let rand = Math.random()
+        if (rand < filled_probabilty){
+          if (transfer(order.side, order.origQty, order.price)){
+            order_status = "FILLED"
+            order_executed_qty = order.origQty
+          }
+        }else {
+          let cuant_to_exec = Math.random() * order.origQty
+          if (transfer(order.side, cuant_to_exec, current_price)){
+            order_status = "PARTIALLY_FILLED"
+            order_executed_qty = Math.random() * order.origQty
+          }
+        }
+      }
+    }
+  } else if (order_status == "PARTIALLY_FILLED"){
+    let rand = Math.random()
+    if (rand < filled_probabilty){
+      let qty_to_fill = order.origQty - order.executedQty
+      if (transfer(order.side, qty_to_fill, current_price)){
+        order_status = "FILLED"
+        order_executed_qty = order.origQty
+      }
+    }else {
+      let remaining_qty_to_fill = order.origQty - order.executedQty
+      let qty_to_fill = Math.random() * remaining_qty_to_fill
+      if (transfer(order.side, qty_to_fill, current_price)){
+        order_status = "PARTIALLY_FILLED"
+        order_executed_qty = order.executedQty + qty_to_fill
+      }
+    }
+  }
+  result.status = order_status
+  result.executedQty = order_executed_qty
+
+  return result
+}
+
+function updateStopLossLimit(order){
+  let result = order
+
+  let isWorking = order.isWorking
+  let order_status = order.status
+  let order_executed_qty = order.executedQty
+
+  if (order_status == "NEW"){
+    if (order.side == "BUY"){
+      if (current_high >= order.stopPrice){
+        if (!order.isWorking){
+          isWorking = true
+        }
+      }
+      else if (order.isWorking && current_low <= order.price){
+        let rand = Math.random() 
+        if (rand < filled_probabilty){
+          if (transfer(order.side, order.origQty, order.price)){
+            order_status = "FILLED"
+            order_executed_qty = order.origQty
+          }
+        }else {
+          let cuant_to_exec = Math.random() * order.origQty
+          if (transfer(order.side, cuant_to_exec, current_price)){
+            order_status = "PARTIALLY_FILLED"
+            order_executed_qty = Math.random() * order.origQty
+          }
+        }
+      }
+    } else if(order.side == "SELL"){
+      if (current_low <= order.stopPrice){
+        if (!order.isWorking){
+          isWorking = true
+        }
+      }
+      else if (order.isWorking && current_high >= order.price){
+        let rand = Math.random()
+        if (rand < filled_probabilty){
+          if (transfer(order.side, order.origQty, order.price)){
+            order_status = "FILLED"
+            order_executed_qty = order.origQty
+          }
+        }else {
+          let cuant_to_exec = Math.random() * order.origQty
+          if (transfer(order.side, cuant_to_exec, current_price)){
+            order_status = "PARTIALLY_FILLED"
+            order_executed_qty = Math.random() * order.origQty
+          }
+        }
+      }
+    }
+  } else if (order_status == "PARTIALLY_FILLED"){
+    let rand = Math.random()
+    if (rand < filled_probabilty){
+      let qty_to_fill = order.origQty - order.executedQty
+      if (transfer(order.side, qty_to_fill, current_price)){
+        order_status = "FILLED"
+        order_executed_qty = order.origQty
+      }
+    }else {
+      let remaining_qty_to_fill = order.origQty - order.executedQty
+      let qty_to_fill = Math.random() * remaining_qty_to_fill
+      if (transfer(order.side, qty_to_fill, current_price)){
+        order_status = "PARTIALLY_FILLED"
+        order_executed_qty = order.executedQty + qty_to_fill
+      }
+    }
+  }
+
+  result.isWorking = isWorking
   result.status = order_status
   result.executedQty = order_executed_qty
 
