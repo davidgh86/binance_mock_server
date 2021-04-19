@@ -293,7 +293,7 @@ app.get('/api/v3/allOrders', function(req, res) {
   }
   timeWindowErrorLast = false;
   let params = req.query
-  let limit = 1000
+  let limit = 2000
   let startTime = 0
   let endTime = 25463415625570
   let cleanCache = false
@@ -306,8 +306,8 @@ app.get('/api/v3/allOrders', function(req, res) {
   }
   if (params.limit){
     limit = parseInt(params.limit)
-    if (limit > 1000){
-      limit = 1000
+    if (limit > 2000){
+      limit = 2000
     }
     if (limit < 0) {
       limit = 0
@@ -318,12 +318,6 @@ app.get('/api/v3/allOrders', function(req, res) {
     .filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime))
     .flatMap(order => order.orderReports)
   
-  if (result.length > limit){
-    result = result.slice(-1 * limit)
-  }
-  if (resultOCO.length > limit){
-    resultOCO = resultOCO.slice(-1 * limit)
-  }
   result = result.concat(resultOCO)
   result = result.sort((a, b) => (b.transactTime - a.transactTime))
 
@@ -348,7 +342,7 @@ app.get('/api/v3/allOrderList', function(req, res) {
   }
   timeWindowErrorLast = false;
   let params = req.query
-  let limit = 1000
+  let limit = 2000
   let startTime = 0
   let endTime = getMilliseconds()
   if (params.startTime){
@@ -359,8 +353,8 @@ app.get('/api/v3/allOrderList', function(req, res) {
   }
   if (params.limit){
     limit = parseInt(params.limit)
-    if (limit > 1000){
-      limit = 1000
+    if (limit > 2000){
+      limit = 2000
     }
     if (limit < 0) {
       limit = 0
@@ -403,7 +397,7 @@ app.get('/api/v3/openOrders', function(req, res) {
   }
   timeWindowErrorLast = false;
   let params = req.query
-  let limit = 1000
+  let limit = 2000
   let startTime = 0
   let endTime = getMilliseconds()
   if (params.startTime){
@@ -414,8 +408,8 @@ app.get('/api/v3/openOrders', function(req, res) {
   }
   if (params.limit){
     limit = parseInt(params.limit)
-    if (limit > 1000){
-      limit = 1000
+    if (limit > 2000){
+      limit = 2000
     }
     if (limit < 0) {
       limit = 0
