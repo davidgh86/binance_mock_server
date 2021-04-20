@@ -36,6 +36,8 @@ let usdt_balance = 1000;
 let wsConnected = false;
 let line;
 
+let paginate = false;
+
 let timeWindowErrorLast = false;
 
 const em = new events.EventEmitter();
@@ -321,7 +323,7 @@ app.get('/api/v3/allOrders', function(req, res) {
   result = result.concat(resultOCO)
   result = result.sort((a, b) => (b.transactTime - a.transactTime))
 
-  if (result.length > limit){
+  if (paginate && result.length > limit){
     result = result.slice(-1 * limit)
   }
 
@@ -361,7 +363,7 @@ app.get('/api/v3/allOrderList', function(req, res) {
     }
   }
   result = orderListOCO.filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime))
-  if (result.length > limit){
+  if (paginate && result.length > limit){
     res.send(result.slice(-1 * limit))
   }else{
     res.send(result)
@@ -417,7 +419,7 @@ app.get('/api/v3/openOrders', function(req, res) {
   }
   result = orderList.filter(order => (order.transactionTime>=startTime && order.transactionTime<=endTime && 
     (order.status=="NEW" || order.status=="PARTIALLY_FILLED")))
-  if (result.length > limit){
+  if (paginate && result.length > limit){
     res.send(result.slice(-1 * limit))
   }else{
     res.send(result)
