@@ -844,6 +844,9 @@ function sendNextLine(ws) {
 function updateCandlestickValues(line) {
   previous_date = current_date
   fields = line.split(",")
+  if (fields[0].length == 10) {
+    fields[0] = fields[0] + " 00:00:00"
+  }
   parts = fields[0].match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
   current_date = Date.UTC(+parts[1], parts[2]-1, +parts[3], +parts[4], +parts[5], +parts[6])
 
